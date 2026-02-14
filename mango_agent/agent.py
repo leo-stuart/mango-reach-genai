@@ -8,7 +8,7 @@ from google.adk.models.lite_llm import LiteLlm
 
 from .prompts import SYSTEM_INSTRUCTION
 from .tools.lead_tools import get_leads, get_lead_details
-from .tools.email_tools import update_email_placeholders
+from .tools.email_tools import update_email_placeholders, send_manual_email
 from .tools.linkedin_tools import update_linkedin_message
 
 
@@ -23,5 +23,6 @@ root_agent = Agent(
         get_lead_details,
         update_email_placeholders,
         update_linkedin_message,
+        send_manual_email,
     ],
 )
