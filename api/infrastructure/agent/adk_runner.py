@@ -4,7 +4,10 @@ Wraps the ADK runner and session service to provide a clean interface
 for the application layer to interact with the agent.
 """
 
+import json
 import logging
+from typing import AsyncGenerator
+
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
@@ -113,5 +116,54 @@ class AgentRunner:
             session_id=request.session_id,
             tool_calls=tool_calls_log,
         )
+
+    async def run_chat_stream(
+        self,
+        user_email: str,
+        token: str,
+        request: ChatRequest,
+    ) -> AsyncGenerator[dict, None]:
+        """Execute a chat turn, yielding SSE event dicts as they arrive."""
+        session = await _get_or_create_session(user_email, request.session_id, token)
+        user_message = _build_user_message(request)
+
+        content = types.Content(
+            role="user",
+            parts=[types.Part.from_text(text=user_message)],
+        )
+
+        try:
+            async for event in runner.run_async(
+                user_id=user_email,
+                session_id=session.id,
+                new_message=content,
+            ):
+                if event.is_final_response():
+                    if event.content and event.content.parts:
+                        text = "\n".join(
+                            part.text for part in event.content.parts if part.text
+                        )
+                        if text:
+                            yield {"event": "response", "data": json.dumps({"text": text})}
+                else:
+                    if event.content and event.content.parts:
+                        for part in event.content.parts:
+                            if part.function_call:
+                                tool_data = {
+                                    "tool": part.function_call.name,
+                                    "args": dict(part.function_call.args) if part.function_call.args else {},
+                                }
+                                yield {"event": "tool_call", "data": json.dumps(tool_data)}
+                            if part.function_response:
+                                result_data = {
+                                    "tool": part.function_response.name,
+                                    "result": dict(part.function_response.response) if part.function_response.response else {},
+                                }
+                                yield {"event": "tool_result", "data": json.dumps(result_data)}
+
+            yield {"event": "done", "data": json.dumps({"session_id": request.session_id})}
+        except Exception as e:
+            logger.exception("Streaming chat error")
+            yield {"event": "error", "data": json.dumps({"message": str(e)})}
 
 agent_runner = AgentRunner()
