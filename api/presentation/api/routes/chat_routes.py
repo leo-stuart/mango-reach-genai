@@ -2,6 +2,7 @@
 
 import logging
 from fastapi import APIRouter, Depends
+from sse_starlette.sse import EventSourceResponse
 
 from api.infrastructure.security.jwt_auth import get_current_user_email, get_raw_token
 from api.presentation.schemas.chat import ChatRequest, ChatResponse
@@ -20,6 +21,18 @@ async def chat(
 ):
     """Send a message to the MangoAI agent and get a response."""
     return await chat_use_case.execute(user_email, token, request)
+
+
+@router.post("/agent/chat/stream")
+async def chat_stream(
+    request: ChatRequest,
+    user_email: str = Depends(get_current_user_email),
+    token: str = Depends(get_raw_token),
+):
+    """Send a message to the MangoAI agent and stream the response via SSE."""
+    return EventSourceResponse(
+        chat_use_case.execute_stream(user_email, token, request),
+    )
 
 
 @router.get("/agent/health")

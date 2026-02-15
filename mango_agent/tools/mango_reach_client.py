@@ -32,6 +32,16 @@ async def api_get(path: str, token: str, params: dict | None = None) -> dict:
         return resp.json()
 
 
+async def api_post(path: str, token: str, body: dict) -> dict:
+    """POST request to Mango Reach API."""
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        url = f"{_BASE}{path}"
+        logger.info(f"POST {url}")
+        resp = await client.post(url, headers=_get_headers(token), json=body)
+        resp.raise_for_status()
+        return resp.json()
+
+
 async def api_patch(path: str, token: str, body: dict) -> dict:
     """PATCH request to Mango Reach API."""
     async with httpx.AsyncClient(timeout=30.0) as client:
