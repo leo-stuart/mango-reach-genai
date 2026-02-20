@@ -10,7 +10,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-MANGO_REACH_API_URL = os.getenv("MANGO_REACH_API_URL", "http://localhost:8008")
+MANGO_REACH_API_URL = os.getenv("MANGO_REACH_API_URL", "http://localhost:8008").rstrip("/")
 _BASE = f"{MANGO_REACH_API_URL}/api/v1"
 
 
